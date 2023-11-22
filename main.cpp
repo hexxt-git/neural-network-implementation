@@ -46,7 +46,7 @@ class Network {
             }
         }
         double activation(double x){
-            return max(.0, x);
+            return 1/(exp(-x)+1); // sigmoid
         }
         void process(vector<Node> inputs){
             int number_of_layers = sizes_of_layers.size();
@@ -62,6 +62,19 @@ class Network {
                         new_value += node_weights[in] * previous_layer[in].value;
                     }
                     nodes[layer][node].value = activation(new_value);
+                }
+            }
+        }
+        void variate_weights(double range){
+            int number_of_layers = sizes_of_layers.size();
+            for(int layer = 0 ; layer < number_of_layers ; layer++){
+                int number_of_nodes = sizes_of_layers[layer];
+                for(int node = 0 ; node < number_of_nodes ; node++){
+                    int number_of_weights = nodes[layer][node].weights.size();
+                    for(int weight = 0 ; weight < number_of_weights ; weight++){
+                        double change = ((double)rand()/RAND_MAX-.5) * range;
+                        nodes[layer][node].weights[weight] += change;
+                    }
                 }
             }
         }
@@ -97,6 +110,9 @@ int main() {
 
     vector<double> my_inputs = {0.2, 1.5};
     my_network.process(layer_from_values(my_inputs));
+    my_network.log_network();
+
+    my_network.variate_weights(.5);
     my_network.log_network();
 
     return 0;
