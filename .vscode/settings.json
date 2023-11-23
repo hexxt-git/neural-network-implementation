@@ -2,6 +2,8 @@
     "files.associations": {
         "*.py": "python",
         "ostream": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "cmath": "cpp",
+        "*.tcc": "cpp"
     }
 }

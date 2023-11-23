@@ -22,6 +22,21 @@ class Node {
         }
 };
 
+vector<Node> layer_from_vector(vector<double> value_vector){
+    vector<Node> new_layer;
+    for(int i = 0 ; i < value_vector.size() ; i++){
+        new_layer.push_back((Node){value_vector[i], (vector<double>){}});
+    }
+    return new_layer;
+}
+vector<double> vector_from_layer(vector<Node> layer){
+    vector<double> new_vector;
+    for(int i = 0 ; i < layer.size() ; i++){
+        new_vector.push_back(layer[i].value);
+    }
+    return new_vector;
+}
+
 class Network {
     public:
         int number_of_inputs;
@@ -48,12 +63,16 @@ class Network {
         double activation(double x){
             return 1/(exp(-x)+1); // sigmoid
         }
-        void process(vector<Node> inputs){
+        double inverse_activation(double y){
+            return log(y / (1.0-y));
+        }
+        void process(vector<double> inputs){
+            vector<Node> input_layer = layer_from_vector(inputs);
             int number_of_layers = sizes_of_layers.size();
             for(int layer = 0 ; layer < number_of_layers ; layer++){
                 int number_of_nodes = sizes_of_layers[layer];
                 for(int node = 0 ; node < number_of_nodes ; node++){
-                    vector<Node> previous_layer = layer == 0 ? inputs : nodes[layer-1];
+                    vector<Node> previous_layer = layer == 0 ? input_layer : nodes[layer-1];
                     vector<double> node_weights = nodes[layer][node].weights;
                     double new_value = .0;
                     // can be obtained from previous_layer or node_weights
@@ -92,28 +111,36 @@ class Network {
                 nodes[layer][node].log();
             }
         }
+        double cost(vector<double>inputs, vector<double>intended_output){
+            process(inputs);
+            vector<double> actual_output = vector_from_layer(nodes[nodes.size()-1]);
+            if(intended_output.size() != actual_output.size()){
+                for(int i = 0 ; i < 10 ; i++) cout << "huge error!\n";
+                return 10000;
+            }
+            double error_value = 0;
+            for(int i = 0 ; i < intended_output.size() ; i++){
+                error_value += pow(activation(intended_output[i]) - actual_output[i], 2);
+            }
+            return error_value * 1000;
+        }
 };
-vector<Node> layer_from_values(vector<double> values){
-    vector<Node> new_layer;
-    for(int i = 0 ; i < values.size() ; i++){
-        new_layer.push_back((Node){values[i], (vector<double>){}});
-    }
-    return new_layer;
-}
 
 int main() {
     srand(time(0));
     
-    vector<int> my_network_sizes = {2, 3, 1};
+    vector<int> my_network_sizes = {2, 3, 2};
     Network my_network = Network(2, my_network_sizes);
-    my_network.log_network();
 
-    vector<double> my_inputs = {0.2, 1.5};
-    my_network.process(layer_from_values(my_inputs));
     my_network.log_network();
+    double error = my_network.cost(vector<double>{1.0, 3.0},vector<double>{2.0, 6.0});
+    cout << "error before: " << error << endl;
 
+    cout << "--variation--" << endl;
     my_network.variate_weights(.5);
     my_network.log_network();
+    error = my_network.cost(vector<double>{1.0, 3.0},vector<double>{2.0, 6.0});
+    cout << "error after: " << error << endl;
 
     return 0;
 }
