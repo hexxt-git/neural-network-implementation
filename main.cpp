@@ -9,6 +9,9 @@ using namespace std;
 double random(double x){
     return (double)rand() / RAND_MAX * x;
 }
+double random(double x, double y){
+    return (double)rand() / RAND_MAX * (y-x) + x;
+}
 
 class Node {
     public:
@@ -50,9 +53,11 @@ class Network {
         int num_inputs;
         vector<int> network_shape; // excluding inputs
         vector<vector<Node>> nodes; // excluding inputs
+        double score; // for genetic algorithm doesn't need to be used
         Network(int n, vector<int> s){
             num_inputs = n;
             network_shape = s;
+            score = random(1e8, 1e9);
             for(int i = 0 ; i < s.size() ; i++){ // nodes
                 vector<Node> new_layer;
                 for(int j = 0 ; j < s[i] ; j++){
@@ -72,7 +77,7 @@ class Network {
         double activation(double x){
             return 1/(exp(-x)+1); // sigmoid
         }
-        double inverse_activation(double y){
+        double inverse_activation(double y){ // avoid using this
             return log(y / (1.0-y));
         }
         void process(vector<double> inputs, bool activate_last_layer){
@@ -106,36 +111,30 @@ class Network {
             process(inputs, actiave_last_layer);
             return get_outputs();
         }
-        void variate_network(double range){
-            default_random_engine generator;
-            normal_distribution<double> distribution(0.0, range);
-
-            int num_layers = network_shape.size();
-            for(int layer = 0 ; layer < num_layers ; layer++){
-                int num_nodes = network_shape[layer];
-                for(int node = 0 ; node < num_nodes ; node++){
-                    int num_weights = nodes[layer][node].weights.size();
-                    for(int weight = 0 ; weight < num_weights ; weight++){
-                        nodes[layer][node].weights[weight] += distribution(generator);
+        void variate_network(double deviation){
+            for(int layer = 0 ; layer < nodes.size() ; layer++){
+                for(int node = 0 ; node < nodes[layer].size() ; node++){
+                    nodes[layer][node].bias += random(-deviation, deviation);
+                    for(int weight = 0 ; weight < nodes[layer][node].weights.size() ; weight++){
+                        nodes[layer][node].weights[weight] += random(-deviation, deviation);
                     }
-                    nodes[layer][node].bias += distribution(generator);
                 }
             }
         }
         double cost(vector<double>inputs, vector<double>intended_output){
             vector<double> actual_output = get_outputs(inputs, false);
             if(intended_output.size() != actual_output.size()){
-                for(int i = 0 ; i < 10 ; i++) cout << "huge error!\n\n";
-                return 10000;
+                cout << "error!\n\n";
+                return 1e9;
             }
             double error_value = 0;
             for(int i = 0 ; i < intended_output.size() ; i++){
                 error_value += pow(intended_output[i] - actual_output[i], 2);
             }
-            return error_value / intended_output.size();
+            return error_value * 1000 / intended_output.size();
         }
         void log_network(){
-            cout << "--netowrk log--\n";
+            cout << "--network log--\n" << "score: " << score << endl;
             int num_layers = network_shape.size();
             for(int layer = 0 ; layer < num_layers ; layer++){
                 log_layer(layer);
@@ -150,67 +149,69 @@ class Network {
         }
 };
 
+#include <algorithm> // for std::sort
+
 int main() {
     srand(time(0));
-    
+
     vector<vector<vector<double>>> data_set;
-    for(int i = 0 ; i < 300 ; i++){
+    for(int i = 0 ; i < 1000 ; i++){
         vector<vector<double>> data_point;
         double random_input = random(6.0);
         data_point.push_back((vector<double>){random_input}); // inputs
-        data_point.push_back((vector<double>){(sin(random_input) + 1) / 2}); // outputs
+        data_point.push_back((vector<double>){2*random_input, 3*random_input}); // outputs
         data_set.push_back(data_point);
     }
 
-    vector<int> network_shape = {4, 4, 4, 1};
-    Network current_best = Network(1, network_shape);
-    double current_best_avg_cost = 1e6;
+    int generation_size = 100, num_generations = 100, tests = 30;
+    double mutation_deviation = 0.01;
+    vector<int> network_shape = {2};
 
-    int num_generations = 30 , num_variations = 100 , num_tests = 10;
-    double variate_by = 0.5;
-    for(int gen = 0 ; gen < num_generations ; gen++){
-        cout << "gen " << gen << " average cost: " << current_best_avg_cost << endl;
-        // make variation
-        vector<Network> new_generation;
-        for(int var = 0 ; var < num_variations-1 ; var++){
-            // a deep copy of current best so i dont effect the current best
-            Network variation = Network(current_best.num_inputs, current_best.network_shape);
-            for(int i = 0; i < current_best.nodes.size(); i++) {
-                for(int j = 0; j < current_best.nodes[i].size(); j++) {
-                    variation.nodes[i][j].weights = current_best.nodes[i][j].weights;
-                    variation.nodes[i][j].bias = current_best.nodes[i][j].bias;
-                }
-            }
-            // random mutation
-            variation.variate_network(variate_by);
-            new_generation.push_back(variation);
-        }
-        Network new_random = Network(current_best.num_inputs, current_best.network_shape);
-        new_generation.push_back(new_random);
-        // test them n times each on a random data-point and get each variation average cost
-        for(int var = 0 ; var < num_variations ; var++){
-            double average_cost = 0;
-            for(int i = 0 ; i < num_tests ; i++){
-                int random_index = rand() % data_set.size();
-                vector<vector<double>> data_point = data_set[random_index];
-                average_cost += new_generation[var].cost(data_point[0], data_point[1]) / num_tests;
-            }
-            if(average_cost < current_best_avg_cost){
-                current_best_avg_cost = average_cost;
-                current_best = new_generation[var];
-            }
-        }
+    vector<Network> current_generation;
+    for(int i = 0 ; i < generation_size ; i++){
+        current_generation.push_back(Network(1, network_shape));
     }
 
-    cout << endl;
-    cout << current_best.get_outputs((vector<double>){0.0}, false)[0]*2-1 << endl; //    0.000
-    cout << current_best.get_outputs((vector<double>){M_PI/6}, false)[0]*2-1 << endl; // 0.500
-    cout << current_best.get_outputs((vector<double>){M_PI/4}, false)[0]*2-1 << endl; // 0.707
-    cout << current_best.get_outputs((vector<double>){M_PI/3}, false)[0]*2-1 << endl; // 0.866
-    cout << current_best.get_outputs((vector<double>){M_PI/2}, false)[0]*2-1 << endl; // 1.000
-    cout << current_best.get_outputs((vector<double>){M_PI}, false)[0]*2-1 << endl; //   0.000
-    cout << endl;
-    current_best.log_network();
+    current_generation[0].nodes = vector<vector<Node>>{
+        vector<Node>{
+            Node{0, 0, vector<double>{2.1}},
+            Node{0, 0, vector<double>{2.8}}
+        }
+    };
+
+    for(int gen = 0 ; gen < num_generations ; gen++){
+
+        for(int net = 0 ; net < generation_size ; net++){
+            current_generation[net].score = 0;
+            for(int test = 0 ; test < tests ; test++){
+                int x = rand() % data_set.size();
+                vector<double> inputs = data_set[x][0];
+                vector<double> outputs = data_set[x][1];
+                current_generation[net].score += current_generation[net].cost(inputs, outputs) / tests;
+            }
+        }
+
+        // Sort current_generation by .score
+        sort(current_generation.begin(), current_generation.end(), [](const Network& a, const Network& b) {
+            return a.score < b.score;
+        });
+        //current_generation[0].log_network();
+
+        cout << "generation " << gen << " best score: " << current_generation[0].score << endl;
+
+        // Create next generation
+        vector<Network> next_generation;
+        // Keep the best 10% of the current generation with mutation
+        for(int i = 0 ; i < generation_size / 10 ; i++){
+            for(int j = 0 ; j < 10 ; j++){
+                Network copy = Network(1, network_shape);
+                copy.nodes = current_generation[i].nodes;
+                copy.variate_network(mutation_deviation);
+                next_generation.push_back(copy);
+            }
+        }
+        current_generation = next_generation; // AAAAA I FORGOT TO DO THIS FOR LIKE 40 MINUTES
+    }
 
     return 0;
 }
