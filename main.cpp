@@ -3,6 +3,7 @@
 #include <vector>
 #include <random>
 #include <ctime>
+#include <algorithm>
 
 using namespace std;
 
@@ -32,7 +33,6 @@ class Node {
             } cout << endl;
         }
 };
-
 vector<Node> layer_from_vector(vector<double> value_vector){
     vector<Node> new_layer;
     for(int i = 0 ; i < value_vector.size() ; i++){
@@ -47,7 +47,6 @@ vector<double> vector_from_layer(vector<Node> layer){
     }
     return new_vector;
 }
-
 class Network {
     public:
         int num_inputs;
@@ -57,17 +56,17 @@ class Network {
         Network(int n, vector<int> s){
             num_inputs = n;
             network_shape = s;
-            score = random(1e8, 1e9);
+            score = 1e9;
             for(int i = 0 ; i < s.size() ; i++){ // nodes
                 vector<Node> new_layer;
                 for(int j = 0 ; j < s[i] ; j++){
                     vector<double> new_weights;
                     int size = i == 0 ? num_inputs : s[i-1];
                     for(int k = 0 ; k < size ; k++){
-                        double random_value = random(2.0)-1.0;
+                        double random_value = random(-3.0, 3.0);
                         new_weights.push_back(random_value);
                     }
-                    double random_bias = random(1.0)-0.5;
+                    double random_bias = random(-3.0, 3.0);
                     Node new_node = {0, random_bias, new_weights};
                     new_layer.push_back(new_node);
                 }
@@ -75,10 +74,7 @@ class Network {
             }
         }
         double activation(double x){
-            return 1/(exp(-x)+1); // sigmoid
-        }
-        double inverse_activation(double y){ // avoid using this
-            return log(y / (1.0-y));
+            return max(0.0, x);
         }
         void process(vector<double> inputs, bool activate_last_layer){
             vector<Node> input_layer = layer_from_vector(inputs);
@@ -129,9 +125,9 @@ class Network {
             }
             double error_value = 0;
             for(int i = 0 ; i < intended_output.size() ; i++){
-                error_value += pow(intended_output[i] - actual_output[i], 2);
+                error_value += pow(abs(intended_output[i] - actual_output[i]), 2.0);
             }
-            return error_value * 1000 / intended_output.size();
+            return error_value * 10 / intended_output.size();
         }
         void log_network(){
             cout << "--network log--\n" << "score: " << score << endl;
@@ -149,35 +145,28 @@ class Network {
         }
 };
 
-#include <algorithm> // for std::sort
-
 int main() {
     srand(time(0));
 
     vector<vector<vector<double>>> data_set;
     for(int i = 0 ; i < 1000 ; i++){
         vector<vector<double>> data_point;
-        double random_input = random(6.0);
-        data_point.push_back((vector<double>){random_input}); // inputs
-        data_point.push_back((vector<double>){2*random_input, 3*random_input}); // outputs
+        double x = random(-3.0, 3.0);
+        data_point.push_back((vector<double>){x}); // inputs
+        data_point.push_back((vector<double>){2*x+1, 3*x, x*x}); // outputs
         data_set.push_back(data_point);
     }
 
-    int generation_size = 100, num_generations = 100, tests = 30;
-    double mutation_deviation = 0.01;
-    vector<int> network_shape = {2};
+    int generation_size = 100;
+    int num_generations = 3000;
+    int tests = 30;
+    double mutation_deviation = 0.05;
+    vector<int> network_shape = {8, 8, 8, 3};
 
     vector<Network> current_generation;
     for(int i = 0 ; i < generation_size ; i++){
         current_generation.push_back(Network(1, network_shape));
     }
-
-    current_generation[0].nodes = vector<vector<Node>>{
-        vector<Node>{
-            Node{0, 0, vector<double>{2.1}},
-            Node{0, 0, vector<double>{2.8}}
-        }
-    };
 
     for(int gen = 0 ; gen < num_generations ; gen++){
 
@@ -195,22 +184,28 @@ int main() {
         sort(current_generation.begin(), current_generation.end(), [](const Network& a, const Network& b) {
             return a.score < b.score;
         });
-        //current_generation[0].log_network();
 
         cout << "generation " << gen << " best score: " << current_generation[0].score << endl;
+        if(gen % 50 == 49){
+            cout << "\ntesting current best on [-3; 3]\n";
+            for(double x = -3 ; x < 3 ; x++){
+                cout << x << ": " << floor(current_generation[0].get_outputs((vector<double>){x}, false)[0]*10)/10 << ", " << floor(current_generation[0].get_outputs((vector<double>){x}, false)[1]*10)/10 << ", " << floor(current_generation[0].get_outputs((vector<double>){x}, false)[2]*10)/10 << endl; // [2x+1, 3x] epic oneliner
+            }
+            current_generation[0].log_network();
+            cout << endl;
+        }
 
         // Create next generation
         vector<Network> next_generation;
         // Keep the best 10% of the current generation with mutation
         for(int i = 0 ; i < generation_size / 10 ; i++){
-            for(int j = 0 ; j < 10 ; j++){
-                Network copy = Network(1, network_shape);
-                copy.nodes = current_generation[i].nodes;
+            for(int j = 0 ; j < generation_size / 10 ; j++){
+                Network copy = current_generation[i];
                 copy.variate_network(mutation_deviation);
                 next_generation.push_back(copy);
             }
         }
-        current_generation = next_generation; // AAAAA I FORGOT TO DO THIS FOR LIKE 40 MINUTES
+        current_generation = next_generation;
     }
 
     return 0;
