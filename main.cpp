@@ -144,32 +144,13 @@ class Network {
             }
         }
 };
-
-int main() {
-    srand(time(0));
-
-    vector<vector<vector<double>>> data_set;
-    for(int i = 0 ; i < 1000 ; i++){
-        vector<vector<double>> data_point;
-        double x = random(-3.0, 3.0);
-        data_point.push_back((vector<double>){x}); // inputs
-        data_point.push_back((vector<double>){2*x+1, 3*x, x*x}); // outputs
-        data_set.push_back(data_point);
-    }
-
-    int generation_size = 100;
-    int num_generations = 3000;
-    int tests = 30;
-    double mutation_deviation = 0.05;
-    vector<int> network_shape = {8, 8, 8, 3};
-
+Network evolve_network(int num_inputs, vector<int>network_shape, vector<vector<vector<double>>> data_set, int generation_size, int num_generations, int tests, double mutation_range){
     vector<Network> current_generation;
     for(int i = 0 ; i < generation_size ; i++){
-        current_generation.push_back(Network(1, network_shape));
+        current_generation.push_back(Network(num_inputs, network_shape));
     }
 
     for(int gen = 0 ; gen < num_generations ; gen++){
-
         for(int net = 0 ; net < generation_size ; net++){
             current_generation[net].score = 0;
             for(int test = 0 ; test < tests ; test++){
@@ -201,12 +182,30 @@ int main() {
         for(int i = 0 ; i < generation_size / 10 ; i++){
             for(int j = 0 ; j < generation_size / 10 ; j++){
                 Network copy = current_generation[i];
-                copy.variate_network(mutation_deviation);
+                copy.variate_network(mutation_range);
                 next_generation.push_back(copy);
             }
         }
         current_generation = next_generation;
     }
+
+    return current_generation[0];
+}
+
+int main() {
+    srand(time(0));
+
+    vector<vector<vector<double>>> data_set;
+    for(int i = 0 ; i < 1000 ; i++){
+        vector<vector<double>> data_point;
+        double x = random(-3.0, 3.0);
+        data_point.push_back((vector<double>){x}); // inputs
+        data_point.push_back((vector<double>){2*x+1, 3*x, x*x}); // outputs
+        data_set.push_back(data_point);
+    }
+
+    Network network = evolve_network(1, (vector<int>){8, 8, 3}, data_set, 100, 1000, 10, 0.05);
+    
 
     return 0;
 }
