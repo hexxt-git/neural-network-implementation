@@ -1,7 +1,8 @@
 {
     "files.associations": {
         "*.py": "python",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "ostream": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "git.ignoreLimitWarning": true

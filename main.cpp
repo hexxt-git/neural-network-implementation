@@ -4,6 +4,9 @@
 #include <random>
 #include <ctime>
 #include <algorithm>
+#define STB_IMAGE_IMPLEMENTATION
+#include "./dependancies/stb_image.h"
+#include <filesystem>
 
 using namespace std;
 
@@ -170,8 +173,8 @@ Network evolve_network(int num_inputs, vector<int>network_shape, vector<vector<v
 
         // Create next generation
         vector<Network> next_generation;
-        // Keep the best 10% of the current generation with mutation
-        for(int i = 0 ; i < generation_size / 10 ; i++){
+        // Keep the top 10 of the current generation with mutation
+        for(int i = 0 ; i < 10 ; i++){
             for(int j = 0 ; j < generation_size / 10 ; j++){
                 Network copy = current_generation[i];
                 copy.variate_network(mutation_range);
@@ -185,13 +188,28 @@ Network evolve_network(int num_inputs, vector<int>network_shape, vector<vector<v
 }
 vector<vector<vector<double>>> load_data_set(){
     vector<vector<vector<double>>> data_set;
-    for(int i = 0 ; i < 1000 ; i++){
-        vector<vector<double>> data_point;
-        double x = random(-3.0, 3.0);
-        data_point.push_back((vector<double>){x}); // inputs
-        data_point.push_back((vector<double>){2*x+1, 3*x, x*x}); // outputs
-        data_set.push_back(data_point);
+
+    for(int i = 0 ; i <= 9 ; i++){ // for every number
+        for (const auto & entry : filesystem::directory_iterator("./data/" + to_string(i))) { // for every image
+            filesystem::__cxx11::path image_path = entry.path();
+            int width = 128, height = 128, channels = 1;
+            unsigned char* img = stbi_load(image_path.string().c_str(), &width, &height, &channels, 0); // read image
+            if (img == NULL) {
+                printf("Error in loading the image\n");
+            }            
+
+            vector<double> inputs;
+            for(int i = 0 ; i < width * height * channels ; i++){ // for every pixel
+                inputs.push_back((double)img[i] / 255.0);
+            }
+            vector<double> outputs = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            outputs[i] = 1;
+            vector<vector<double>> data_point = {inputs, outputs};
+            data_set.push_back(data_point);
+            stbi_image_free(img);
+        }
     }
+    
     return data_set;
 }
 
@@ -199,7 +217,8 @@ int main() {
     srand(time(0));
 
     vector<vector<vector<double>>> data_set = load_data_set();
-    Network network = evolve_network(1, (vector<int>){8, 8, 3}, data_set, 100, 1000, 10, 0.05);
+    Network network = evolve_network(128*128, (vector<int>){128, 128, 64, 64, 32, 10}, data_set, 50, 10000, 5, 0.05);
+    cout << network.score << endl;
 
     return 0;
 }
