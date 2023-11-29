@@ -167,14 +167,6 @@ Network evolve_network(int num_inputs, vector<int>network_shape, vector<vector<v
         });
 
         cout << "generation " << gen << " best score: " << current_generation[0].score << endl;
-        if(gen % 50 == 49){
-            cout << "\ntesting current best on [-3; 3]\n";
-            for(double x = -3 ; x < 3 ; x++){
-                cout << x << ": " << floor(current_generation[0].get_outputs((vector<double>){x}, false)[0]*10)/10 << ", " << floor(current_generation[0].get_outputs((vector<double>){x}, false)[1]*10)/10 << ", " << floor(current_generation[0].get_outputs((vector<double>){x}, false)[2]*10)/10 << endl; // [2x+1, 3x] epic oneliner
-            }
-            current_generation[0].log_network();
-            cout << endl;
-        }
 
         // Create next generation
         vector<Network> next_generation;
@@ -191,10 +183,7 @@ Network evolve_network(int num_inputs, vector<int>network_shape, vector<vector<v
 
     return current_generation[0];
 }
-
-int main() {
-    srand(time(0));
-
+vector<vector<vector<double>>> load_data_set(){
     vector<vector<vector<double>>> data_set;
     for(int i = 0 ; i < 1000 ; i++){
         vector<vector<double>> data_point;
@@ -203,9 +192,14 @@ int main() {
         data_point.push_back((vector<double>){2*x+1, 3*x, x*x}); // outputs
         data_set.push_back(data_point);
     }
+    return data_set;
+}
 
+int main() {
+    srand(time(0));
+
+    vector<vector<vector<double>>> data_set = load_data_set();
     Network network = evolve_network(1, (vector<int>){8, 8, 3}, data_set, 100, 1000, 10, 0.05);
-    
 
     return 0;
 }

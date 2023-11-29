@@ -1,14 +1,8 @@
 {
     "files.associations": {
         "*.py": "python",
-        "ostream": "cpp",
-        "iostream": "cpp",
-        "cmath": "cpp",
-        "*.tcc": "cpp",
-        "array": "cpp",
-        "string_view": "cpp",
-        "initializer_list": "cpp",
-        "limits": "cpp",
         "algorithm": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled",
+    "git.ignoreLimitWarning": true
 }
