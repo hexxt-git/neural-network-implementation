@@ -170,6 +170,21 @@ Network evolve_network(int num_inputs, vector<int>network_shape, vector<vector<v
         });
 
         cout << "generation " << gen << " best score: " << current_generation[0].score << endl;
+        double accurate = 0;
+        for(int i = 0 ; i < 50 ; i++){
+            int x = rand() % data_set.size();
+            vector<double> inputs = data_set[x][0];
+            vector<double> outputs = data_set[x][1];
+            vector<double> actual_outputs = current_generation[0].get_outputs(inputs, true);
+            int truth = 0;
+            int guess = 0;
+            for (int i = 0; i < actual_outputs.size(); i++) {
+                if (actual_outputs[i] > actual_outputs[guess]) guess = i;
+                if (outputs[i] > outputs[truth]) truth = i;
+            }
+            if (guess == truth) accurate += 1.0;
+        }
+        cout << "accuracy: " << accurate/50.0*100.0 << "%" << endl;
 
         // Create next generation
         vector<Network> next_generation;
@@ -217,7 +232,7 @@ int main() {
     srand(time(0));
 
     vector<vector<vector<double>>> data_set = load_data_set();
-    Network network = evolve_network(128*128, (vector<int>){128, 128, 64, 64, 32, 10}, data_set, 50, 10000, 5, 0.05);
+    Network network = evolve_network(128*128, (vector<int>){128, 128, 64, 64, 32, 10}, data_set, 50, 10000, 10, 0.05);
     cout << network.score << endl;
 
     return 0;
